@@ -17,7 +17,7 @@ struct InstallationStepView: View {
                     controlSize: .small,
                     style: .spinning
                 )
-                .help("Dowloading: \(Int((progress.fractionCompleted * 100)))% complete")
+                .help("Dowloading: \(Int((progress.progress.fractionCompleted * 100)))% complete")
             case .unarchiving, .moving, .trashingArchive, .checkingSecurity, .finishing:
                 ProgressView()
                     .scaleEffect(0.5)
@@ -45,7 +45,10 @@ struct InstallView_Previews: PreviewProvider {
                 Group {
                     InstallationStepView(
                         installationStep: .downloading(
-                            progress: configure(Progress(totalUnitCount: 100)) { $0.completedUnitCount = 40 }
+                            progress: configure(
+                                DownloadProgress(progress: Progress(totalUnitCount: 100))) {
+                                $0.progress.completedUnitCount = 40
+                            }
                         ),
                         highlighted: false,
                         cancel: {}
@@ -90,7 +93,10 @@ struct InstallView_Previews: PreviewProvider {
                 Group {
                     InstallationStepView(
                         installationStep: .downloading(
-                            progress: configure(Progress(totalUnitCount: 100)) { $0.completedUnitCount = 40 }
+                            progress: configure(
+                                DownloadProgress(progress: Progress(totalUnitCount: 100))) {
+                                $0.progress.completedUnitCount = 40
+                            }
                         ),
                         highlighted: true,
                         cancel: {}

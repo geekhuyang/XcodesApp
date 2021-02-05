@@ -121,7 +121,10 @@ struct XcodeListViewRow_Previews: PreviewProvider {
             )
             
             XcodeListViewRow(
-                xcode: Xcode(version: Version("12.1.0")!, installState: .installing(.downloading(progress: configure(Progress(totalUnitCount: 100)) { $0.completedUnitCount = 40 })), selected: false, icon: nil),
+                xcode: Xcode(version: Version("12.1.0")!, installState: .installing(.downloading(progress: configure(
+                    DownloadProgress(progress: Progress(totalUnitCount: 100))) {
+                    $0.progress.completedUnitCount = 40
+                })), selected: false, icon: nil),
                 selected: false
             )
             

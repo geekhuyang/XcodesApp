@@ -2,7 +2,7 @@ import Foundation
 
 /// A numbered step
 enum InstallationStep: Equatable, CustomStringConvertible {
-    case downloading(progress: Progress)
+    case downloading(progress: DownloadProgress)
     case unarchiving
     case moving(destination: String)
     case trashingArchive
@@ -15,8 +15,8 @@ enum InstallationStep: Equatable, CustomStringConvertible {
 
     var message: String {
         switch self {
-        case .downloading:
-            return "Downloading"
+        case .downloading(let progress):
+            return "\(progress.total) \(progress.speed) \(progress.eta)"
         case .unarchiving:
             return "Unarchiving (This can take a while)"
         case .moving(let destination):

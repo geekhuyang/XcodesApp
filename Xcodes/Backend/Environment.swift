@@ -34,7 +34,7 @@ public struct Shell {
 
     public var xcodeSelectPrintPath: () -> AnyPublisher<ProcessOutput, Error> = { Process.run(Path.root.usr.bin.join("xcode-select"), "-p") }
     
-    public var downloadWithAria2: (Path, URL, Path, [HTTPCookie]) -> (Progress, AnyPublisher<Void, Error>) = { aria2Path, url, destination, cookies in
+    public var downloadWithAria2: (Path, URL, Path, [HTTPCookie]) -> (DownloadProgress, AnyPublisher<Void, Error>) = { aria2Path, url, destination, cookies in
         let process = Process()
         process.executableURL = aria2Path.url
         process.arguments = [
@@ -52,8 +52,9 @@ public struct Shell {
         let stdErrPipe = Pipe()
         process.standardError = stdErrPipe
         
-        var progress = Progress(totalUnitCount: 100)
-
+        //var progress = Progress(totalUnitCount: 100)
+        var downloadProgress = DownloadProgress(progress: Progress(totalUnitCount: 100))
+        
         let observer = NotificationCenter.default.addObserver(
             forName: .NSFileHandleDataAvailable, 
             object: nil, 
@@ -68,16 +69,38 @@ public struct Shell {
             defer { handle.waitForDataInBackgroundAndNotify() }
 
             let string = String(decoding: handle.availableData, as: UTF8.self)
-            let regex = try! NSRegularExpression(pattern: #"((?<percent>\d+)%\))"#)
+            
+            let regexPercent = try! NSRegularExpression(pattern: #"((?<percent>\d+)%\))"#)
+            let regexTotal = try! NSRegularExpression(pattern: #"(?<= )(.*)(?=\()"#)
+            let regexSpeed = try! NSRegularExpression(pattern: #"(?<=DL:)(.*)(?= )"#)
+            let regexETA = try! NSRegularExpression(pattern: #"(?<=ETA:)(.*)(?=])"#)
+
             let range = NSRange(location: 0, length: string.utf16.count)
 
-            guard
-                let match = regex.firstMatch(in: string, options: [], range: range),
-                let matchRange = Range(match.range(withName: "percent"), in: string),
-                let percentCompleted = Int64(string[matchRange])
-            else { return }
-
-            progress.completedUnitCount = percentCompleted
+            if let match = regexPercent.firstMatch(in: string, options: [], range: range),
+               let matchRange = Range(match.range(withName: "percent"), in: string),
+               let percentCompleted = Int64(string[matchRange]) {
+                
+                downloadProgress.progress.completedUnitCount = percentCompleted
+            }
+            
+            if let match = regexTotal.firstMatch(in: string, options: [], range: range),
+               let matchRange = Range(match.range(at: 0), in: string) {
+                
+                downloadProgress.total = String(string[matchRange])
+            }
+            
+            if let match = regexSpeed.firstMatch(in: string, options: [], range: range),
+               let matchRange = Range(match.range(at: 0), in: string) {
+                
+                downloadProgress.speed = String(string[matchRange])
+            }
+            
+            if let match = regexETA.firstMatch(in: string, options: [], range: range),
+               let matchRange = Range(match.range(at: 0), in: string) {
+                
+                downloadProgress.eta = String(string[matchRange])
+            }
         }
 
         stdOutPipe.fileHandleForReading.waitForDataInBackgroundAndNotify()
@@ -86,7 +109,7 @@ public struct Shell {
         do {
             try process.run()
         } catch {
-            return (progress, Fail(error: error).eraseToAnyPublisher())
+            return (downloadProgress, Fail(error: error).eraseToAnyPublisher())
         }
 
         let publisher = Deferred {
@@ -113,7 +136,7 @@ public struct Shell {
         })
         .eraseToAnyPublisher()
         
-        return (progress, publisher)
+        return (downloadProgress, publisher)
     }
 }
 

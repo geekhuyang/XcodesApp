@@ -73,7 +73,7 @@ extension AppState {
         .eraseToAnyPublisher()
     }
     
-    public func downloadOrUseExistingArchive(for availableXcode: AvailableXcode, downloader: Downloader, progressChanged: @escaping (Progress) -> Void) -> AnyPublisher<URL, Error> {
+    public func downloadOrUseExistingArchive(for availableXcode: AvailableXcode, downloader: Downloader, progressChanged: @escaping (DownloadProgress) -> Void) -> AnyPublisher<URL, Error> {
         // Check to see if the archive is in the expected path in case it was downloaded but failed to install
         let expectedArchivePath = Path.xcodesApplicationSupport/"Xcode-\(availableXcode.version).\(availableXcode.filename.suffix(fromLast: "."))"
         // aria2 downloads directly to the destination (instead of into /tmp first) so we need to make sure that the download isn't incomplete
@@ -109,7 +109,7 @@ extension AppState {
         }
     }
     
-    public func downloadXcodeWithAria2(_ availableXcode: AvailableXcode, to destination: Path, aria2Path: Path, progressChanged: @escaping (Progress) -> Void) -> AnyPublisher<URL, Error> {
+    public func downloadXcodeWithAria2(_ availableXcode: AvailableXcode, to destination: Path, aria2Path: Path, progressChanged: @escaping (DownloadProgress) -> Void) -> AnyPublisher<URL, Error> {
         let cookies = AppleAPI.Current.network.session.configuration.httpCookieStorage?.cookies(for: availableXcode.url) ?? []
     
         let (progress, publisher) = Current.shell.downloadWithAria2(
@@ -124,7 +124,7 @@ extension AppState {
             .eraseToAnyPublisher()
     }
 
-    public func downloadXcodeWithURLSession(_ availableXcode: AvailableXcode, to destination: Path, progressChanged: @escaping (Progress) -> Void) -> AnyPublisher<URL, Error> {
+    public func downloadXcodeWithURLSession(_ availableXcode: AvailableXcode, to destination: Path, progressChanged: @escaping (DownloadProgress) -> Void) -> AnyPublisher<URL, Error> {
         let resumeDataPath = Path.xcodesApplicationSupport/"Xcode-\(availableXcode.version).resumedata"
         let persistedResumeData = Current.files.contents(atPath: resumeDataPath.string)
         
@@ -132,7 +132,7 @@ extension AppState {
             let (progress, publisher) = Current.network.downloadTask(with: availableXcode.url,
                                                                    to: destination.url,
                                                                    resumingWith: resumeData ?? persistedResumeData)
-            progressChanged(progress)
+            progressChanged(DownloadProgress(progress: progress))
             return publisher
                 .map { $0.saveLocation }
                 .eraseToAnyPublisher()
@@ -518,3 +518,11 @@ public enum InstallationType {
 
 let XcodeTeamIdentifier = "59GAB85EFG"
 let XcodeCertificateAuthority = ["Software Signing", "Apple Code Signing Certification Authority", "Apple Root CA"]
+
+
+public struct DownloadProgress: Equatable {
+    var progress: Progress
+    var speed: String?
+    var total: String?
+    var eta: String?
+}

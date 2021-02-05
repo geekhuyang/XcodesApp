@@ -11,7 +11,7 @@ public struct ObservingProgressIndicator: View {
     @StateObject private var progress: ProgressWrapper
     
     public init(
-        _ progress: Progress,
+        _ progress: DownloadProgress,
         controlSize: NSControl.ControlSize,
         style: NSProgressIndicator.Style
     ) {
@@ -21,12 +21,12 @@ public struct ObservingProgressIndicator: View {
     }
     
     class ProgressWrapper: ObservableObject {
-        var progress: Progress
+        var progress: DownloadProgress
         var cancellable: AnyCancellable!
         
-        init(progress: Progress) {
+        init(progress: DownloadProgress) {
             self.progress = progress
-            cancellable = progress
+            cancellable = progress.progress
                 .publisher(for: \.fractionCompleted)
                 .receive(on: RunLoop.main)
                 .sink { [weak self] _ in self?.objectWillChange.send() }
@@ -37,9 +37,9 @@ public struct ObservingProgressIndicator: View {
         ProgressIndicator(
             minValue: 0.0,
             maxValue: 1.0,
-            doubleValue: progress.progress.fractionCompleted, 
+            doubleValue: progress.progress.progress.fractionCompleted,
             controlSize: controlSize,
-            isIndeterminate: progress.progress.isIndeterminate,
+            isIndeterminate: progress.progress.progress.isIndeterminate,
             style: style
         )
     }
@@ -50,8 +50,9 @@ struct ObservingProgressBar_Previews: PreviewProvider {
     static var previews: some View {
         Group {
             ObservingProgressIndicator(
-                configure(Progress(totalUnitCount: 100)) {
-                    $0.completedUnitCount = 40
+                configure(
+                    DownloadProgress(progress: Progress(totalUnitCount: 100))) {
+                        $0.progress.completedUnitCount = 40
                 },
                 controlSize: .small,
                 style: .spinning
