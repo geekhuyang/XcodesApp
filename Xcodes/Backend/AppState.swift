@@ -312,7 +312,16 @@ class AppState: ObservableObject {
                 receiveCompletion: { [unowned self] completion in 
                     self.installationPublishers[id] = nil
                     if case let .failure(error) = completion {
-                        self.error = error
+                        //  A fix/workaround to check when the user is trying to install an xcode and
+                        // the session is invalid - the user will have to log in again.
+                        // Show the preferences window, where the UI for log in is.
+                        if case .invalidSession = error as? AuthenticationError {
+                            // Opens preferences window where the SignIn UI is and ignore the original error.
+                            NSApp.sendAction(Selector(("showPreferencesWindow:")), to: nil, from: nil)
+                        } else {
+                            // some other error happens, so let the UI handle this error
+                            self.error = error
+                        }
                         if let index = self.allXcodes.firstIndex(where: { $0.id == id }) { 
                             self.allXcodes[index].installState = .notInstalled
                         }
